@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 import re
 import subprocess
 import time
@@ -124,6 +125,10 @@ class RideView(QWidget):
         self._countdown_timer = QTimer(self)
         self._countdown_timer.setInterval(1000)
         self._countdown_timer.timeout.connect(self._countdown_tick)
+
+        # Mid-workout share-screenshot
+        self._screenshot_at_s: int | None = None
+        self._screenshot_path: Path | None = None
 
         self._build_ui()
 
@@ -253,6 +258,8 @@ class RideView(QWidget):
         self.subtitle.setText(f"{mins} min · {len(w.steps)} steps")
         self.runner = WorkoutRunner(w, self._set_target_async)
         self.workout_bar.set_workout(w, ftp=w.ftp_w)
+        self._screenshot_at_s = None
+        self._screenshot_path = None
         self._refresh_buttons()
         self._update_step_caption()
         self._reset_tile_values()
@@ -386,6 +393,17 @@ class RideView(QWidget):
         self.recorder.start()
         self.runner.start()
         self.recorder.current_step_idx = self.runner.step_idx
+        # Pick a random "middle of the workout" moment to grab a shareable
+        # screenshot (between 30% and 70% of total duration).
+        if self.workout and self.workout.total_duration_s >= 20:
+            total = self.workout.total_duration_s
+            lo = max(5, int(total * 0.30))
+            hi = max(lo + 1, int(total * 0.70))
+            self._screenshot_at_s = random.randint(lo, hi)
+            log.info("Will capture share screenshot at t=%ss", self._screenshot_at_s)
+        else:
+            self._screenshot_at_s = None
+        self._screenshot_path = None
         self._timer.start()
         self._refresh_buttons()
         self.status.setText("Workout started · pedal!")
@@ -471,18 +489,30 @@ class RideView(QWidget):
         msg.setWindowTitle("Finished")
         secs = int(self.recorder.elapsed_s)
         km = self.recorder.distance_m / 1000.0
-        msg.setText(
+        text = (
             f"Workout saved.\n\n"
             f"Duration: {secs // 60} min {secs % 60:02d} s\n"
             f"Distance: {km:.2f} km\n"
             f"FIT: {out_path}"
         )
-        reveal = msg.addButton("Reveal in Finder", QMessageBox.ActionRole)
+        if self._screenshot_path is not None:
+            text += f"\nShare image: {self._screenshot_path}"
+        msg.setText(text)
+        reveal_fit = msg.addButton("Reveal FIT", QMessageBox.ActionRole)
+        reveal_png = None
+        if self._screenshot_path is not None:
+            reveal_png = msg.addButton("Reveal share image", QMessageBox.ActionRole)
         msg.addButton(QMessageBox.Ok)
         msg.exec()
-        if msg.clickedButton() is reveal:
+        clicked = msg.clickedButton()
+        if clicked is reveal_fit:
             try:
                 subprocess.Popen(["open", "-R", str(out_path)])
+            except Exception:  # noqa: BLE001
+                pass
+        elif reveal_png is not None and clicked is reveal_png:
+            try:
+                subprocess.Popen(["open", "-R", str(self._screenshot_path)])
             except Exception:  # noqa: BLE001
                 pass
 
@@ -503,8 +533,35 @@ class RideView(QWidget):
                 play_system_sound("Glass")
         self._update_displays()
         self._update_step_caption()
+        # Grab the mid-workout share screenshot when the clock hits the target.
+        if (
+            self._screenshot_at_s is not None
+            and self._screenshot_path is None
+            and self.runner.state == State.RUNNING
+            and self.runner.elapsed_s >= self._screenshot_at_s
+        ):
+            # Defer one event-loop tick so the tile values for THIS second are
+            # painted before we grab.
+            QTimer.singleShot(0, self._take_share_screenshot)
         if self.runner.state == State.FINISHED:
             self._timer.stop()
+
+    def _take_share_screenshot(self) -> None:
+        if not self.workout or self._screenshot_path is not None:
+            return
+        try:
+            pixmap = self.grab()
+            ts = time.strftime(
+                "%Y%m%d-%H%M%S", time.localtime(self.recorder.started_at_unix)
+            )
+            out = self.rides_dir / f"{ts}__{_slug(self.workout.name)}.png"
+            if pixmap.save(str(out), "PNG"):
+                self._screenshot_path = out
+                log.info("Saved share screenshot to %s", out)
+            else:
+                log.warning("Failed to save share screenshot to %s", out)
+        except Exception:  # noqa: BLE001
+            log.exception("Share screenshot failed")
 
     def _update_displays(self) -> None:
         r = self.recorder
