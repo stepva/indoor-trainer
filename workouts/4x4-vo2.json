@@ -1,0 +1,86 @@
+{
+  "name": "4x4 VO2",
+  "ftp_w": 200,
+  "steps": [
+    {
+      "kind": "steady",
+      "duration_s": 600,
+      "target_w": 110,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Warmup"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 240,
+      "target_w": 240,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "VO2"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 180,
+      "target_w": 110,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Recovery"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 240,
+      "target_w": 240,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "VO2"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 180,
+      "target_w": 110,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Recovery"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 240,
+      "target_w": 240,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "VO2"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 180,
+      "target_w": 110,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Recovery"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 240,
+      "target_w": 240,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "VO2"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 180,
+      "target_w": 110,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Recovery"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 300,
+      "target_w": 100,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Cooldown"
+    }
+  ]
+}

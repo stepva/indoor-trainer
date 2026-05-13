@@ -1,0 +1,78 @@
+{
+  "name": "SST 4x10",
+  "ftp_w": 246,
+  "steps": [
+    {
+      "kind": "ramp",
+      "duration_s": 600,
+      "target_w": null,
+      "ramp_from_w": 125,
+      "ramp_to_w": 185,
+      "label": ""
+    },
+    {
+      "kind": "steady",
+      "duration_s": 600,
+      "target_w": 215,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": ""
+    },
+    {
+      "kind": "steady",
+      "duration_s": 150,
+      "target_w": 125,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": ""
+    },
+    {
+      "kind": "steady",
+      "duration_s": 600,
+      "target_w": 215,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": ""
+    },
+    {
+      "kind": "steady",
+      "duration_s": 150,
+      "target_w": 125,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": ""
+    },
+    {
+      "kind": "steady",
+      "duration_s": 600,
+      "target_w": 215,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": ""
+    },
+    {
+      "kind": "steady",
+      "duration_s": 150,
+      "target_w": 125,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": ""
+    },
+    {
+      "kind": "steady",
+      "duration_s": 600,
+      "target_w": 215,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": ""
+    },
+    {
+      "kind": "steady",
+      "duration_s": 300,
+      "target_w": 125,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": ""
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtualenv (regenerable with `uv sync`)
+.venv/
+
+# macOS
+.DS_Store
+
+# Recorded activity data — private to each user
+rides/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
