@@ -5,6 +5,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QMainWindow, QStackedWidget
 
+from ..recording.autosave import recover_autosaves
 from ..recording.results import ResultsLog, backfill_from_fit_dir
 from ..workout.library import WorkoutLibrary
 from ..workout.model import Workout
@@ -24,6 +25,7 @@ class MainWindow(QMainWindow):
         self.library = WorkoutLibrary(workouts_dir)
         self.library.seed_if_empty()
         self.results_log = ResultsLog(rides_dir / "results.json")
+        recover_autosaves(rides_dir, self.results_log)  # rides lost to a crash -> FIT
         backfill_from_fit_dir(self.results_log, rides_dir)  # import pre-log FIT rides
 
         self.stack = QStackedWidget()

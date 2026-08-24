@@ -105,12 +105,18 @@ class WorkoutRunner:
     def finish(self) -> None:
         self.state = State.FINISHED
 
+    def _jump_to_step(self, idx: int) -> None:
+        self.step_idx = idx
+        self.step_elapsed_s = 0
+        self.last_target_w = None
+        # Advance the workout clock to the step's start so the progress
+        # cursor (driven by elapsed_s) visibly jumps with the skip.
+        self.elapsed_s = sum(s.duration_s for s in self.workout.steps[:idx])
+
     def skip_step(self) -> bool:
         """Jump to the next step. Returns True if a step boundary was crossed."""
         if self.step_idx < len(self.workout.steps) - 1:
-            self.step_idx += 1
-            self.step_elapsed_s = 0
-            self.last_target_w = None
+            self._jump_to_step(self.step_idx + 1)
             return True
         self.finish()
         return False
@@ -124,9 +130,7 @@ class WorkoutRunner:
         last = len(self.workout.steps) - 1
         if last < 0 or self.step_idx >= last:
             return False
-        self.step_idx = last
-        self.step_elapsed_s = 0
-        self.last_target_w = None
+        self._jump_to_step(last)
         return True
 
     def tick(self) -> TickResult:

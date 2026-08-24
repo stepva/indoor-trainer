@@ -37,6 +37,12 @@ from PySide6.QtWidgets import (
 
 from ..ble.ftms import BikeSample, FtmsClient
 from ..ble.hrm import HrmClient
+from ..recording.autosave import (
+    AUTOSAVE_INTERVAL_S,
+    autosave_path,
+    clear_autosave,
+    write_autosave,
+)
 from ..recording.fit_writer import write_fit
 from ..recording.recorder import Recorder
 from ..recording.results import ResultsLog, RideResult, summarize
@@ -114,6 +120,8 @@ class RideView(QWidget):
         self._on_back = on_back
         self.results_log = results_log or ResultsLog(rides_dir / "results.json")
         self._last_result: RideResult | None = None
+        self._autosave_path: Path | None = None
+        self._finish_done = False
 
         self.workout: Workout | None = None
         self.ftms = FtmsClient()
@@ -292,6 +300,8 @@ class RideView(QWidget):
         self.workout_bar.set_workout(w, ftp=w.ftp_w)
         self._screenshot_at_s = None
         self._screenshot_path = None
+        self._autosave_path = None
+        self._finish_done = False
         self._refresh_buttons()
         self._update_step_caption()
         self._reset_tile_values()
@@ -426,6 +436,11 @@ class RideView(QWidget):
         self.recorder.start()
         self.runner.start()
         self.recorder.current_step_idx = self.runner.step_idx
+        self._finish_done = False
+        if self.workout:
+            self._autosave_path = autosave_path(
+                self.rides_dir, self.workout.name, self.recorder.started_at_unix
+            )
         # Pick a random "middle of the workout" moment to grab a shareable
         # screenshot (between 30% and 70% of total duration).
         if self.workout and self.workout.total_duration_s >= 20:
@@ -469,12 +484,16 @@ class RideView(QWidget):
         self._refresh_buttons()
 
     def _skip_step(self) -> None:
-        if self.runner:
-            crossed = self.runner.skip_step()
-            self.recorder.current_step_idx = self.runner.step_idx
-            self._update_step_caption()
-            if crossed:
-                play_system_sound("Tink")
+        if not self.runner:
+            return
+        crossed = self.runner.skip_step()
+        self.recorder.current_step_idx = self.runner.step_idx
+        self._update_step_caption()
+        if crossed:
+            play_system_sound("Tink")
+        elif self.runner.state == State.FINISHED:
+            # Skipping the last step ends the workout — save it, don't just stop.
+            self._finish()
 
     def _skip_to_cooldown(self) -> None:
         if self.runner and self.runner.skip_to_last_step():
@@ -483,12 +502,30 @@ class RideView(QWidget):
             self.status.setText("Jumped to the final step · spin it out.")
             play_system_sound("Tink")
 
+    def _maybe_autosave(self) -> None:
+        """Dump the ride to disk once a minute so a crash can't lose it."""
+        if self._autosave_path is None or not self.workout:
+            return
+        if int(self.recorder.elapsed_s) % AUTOSAVE_INTERVAL_S != 0:
+            return
+        try:
+            write_autosave(
+                self._autosave_path,
+                workout_name=self.workout.name,
+                ftp_w=self.workout.ftp_w,
+                started_at_unix=self.recorder.started_at_unix,
+                records=self.recorder.records,
+            )
+        except Exception:  # noqa: BLE001
+            log.exception("Autosave failed")
+
     def _finish(self) -> None:
-        if not self.runner:
+        if not self.runner or self._finish_done:
             return
         if self._in_countdown:
             self._cancel_countdown()
             return
+        self._finish_done = True
         self._timer.stop()
         self.runner.finish()
         out: Path | None = None
@@ -512,6 +549,8 @@ class RideView(QWidget):
                 out = None
             self._last_result.fit_file = out.name if out is not None else None
             self.results_log.append(self._last_result)
+            if out is not None and self._autosave_path is not None:
+                clear_autosave(self._autosave_path)  # FIT is safe; drop the backup
         asyncio.ensure_future(self._teardown_ble())
         play_system_sound("Hero")
         self._refresh_buttons()
@@ -580,9 +619,13 @@ class RideView(QWidget):
             self.recorder.current_step_idx = self.runner.step_idx
             self.recorder.tick(1.0)
             self.workout_bar.set_progress(self.runner.elapsed_s, self.runner.step_idx)
+            self._maybe_autosave()
             if result.finished:
-                play_system_sound("Hero")
-            elif result.step_changed:
+                # Auto-save the ride the moment the workout ends — don't rely
+                # on the rider pressing Finish.
+                self._finish()
+                return
+            if result.step_changed:
                 # Distinct tone for the start of a new block.
                 play_system_sound("Glass")
         self._update_displays()
@@ -599,6 +642,7 @@ class RideView(QWidget):
             QTimer.singleShot(0, self._take_share_screenshot)
         if self.runner.state == State.FINISHED:
             self._timer.stop()
+            self._finish()  # idempotent — saves the ride if nothing else has
 
     def _take_share_screenshot(self) -> None:
         if not self.workout or self._screenshot_path is not None:
@@ -682,6 +726,8 @@ class RideView(QWidget):
                 return
             if r == QMessageBox.Yes:
                 self._finish()
+            elif self._autosave_path is not None:
+                clear_autosave(self._autosave_path)  # rider chose to discard
         self._timer.stop()
         asyncio.ensure_future(self._teardown_ble())
         self._on_back()

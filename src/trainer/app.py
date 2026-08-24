@@ -15,14 +15,30 @@ from .ui import theme
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
-    )
-
     project_root = Path(__file__).resolve().parents[2]
     workouts_dir = project_root / "workouts"
     rides_dir = project_root / "rides"
+
+    # Log to the terminal AND a rotating file, so crashes leave evidence
+    # even after the terminal is gone.
+    from logging.handlers import RotatingFileHandler
+
+    file_handler = RotatingFileHandler(
+        project_root / "trainer.log", maxBytes=1_000_000, backupCount=3
+    )
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
+        handlers=[logging.StreamHandler(), file_handler],
+    )
+
+    def _log_uncaught(exc_type, exc, tb):
+        logging.getLogger("trainer").critical(
+            "Uncaught exception", exc_info=(exc_type, exc, tb)
+        )
+        sys.__excepthook__(exc_type, exc, tb)
+
+    sys.excepthook = _log_uncaught
 
     app = QApplication(sys.argv)
     app.setApplicationName("Indoor Trainer")
