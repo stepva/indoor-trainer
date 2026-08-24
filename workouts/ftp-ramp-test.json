@@ -1,0 +1,142 @@
+{
+  "name": "FTP Ramp Test",
+  "ftp_w": 246,
+  "steps": [
+    {
+      "kind": "ramp",
+      "duration_s": 480,
+      "target_w": null,
+      "ramp_from_w": 100,
+      "ramp_to_w": 140,
+      "label": "Warmup"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 120,
+      "target_w": 150,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Settle in"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 160,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 1 - 160 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 180,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 2 - 180 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 200,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 3 - 200 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 220,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 4 - 220 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 240,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 5 - 240 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 260,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 6 - 260 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 280,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 7 - 280 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 300,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 8 - 300 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 320,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 9 - 320 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 340,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 10 - 340 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 360,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 11 - 360 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 380,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 12 - 380 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 400,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 13 - 400 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 60,
+      "target_w": 420,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Step 14 - 420 W"
+    },
+    {
+      "kind": "steady",
+      "duration_s": 600,
+      "target_w": 100,
+      "ramp_from_w": null,
+      "ramp_to_w": null,
+      "label": "Cooldown"
+    }
+  ]
+}

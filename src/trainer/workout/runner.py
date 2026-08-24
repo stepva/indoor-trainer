@@ -27,6 +27,10 @@ class TickResult:
     finished: bool
 
 
+BIAS_LIMIT_W = 100
+BIAS_MIN_TARGET_W = 30
+
+
 class WorkoutRunner:
     """Pure logic — UI calls tick() every second.
 
@@ -47,6 +51,7 @@ class WorkoutRunner:
         self.step_idx: int = 0
         self.step_elapsed_s: int = 0
         self.last_target_w: int | None = None
+        self.bias_w: int = 0
 
     @property
     def total_s(self) -> int:
@@ -64,6 +69,22 @@ class WorkoutRunner:
         if step is None:
             return 0
         return max(0, step.duration_s - self.step_elapsed_s)
+
+    def set_bias(self, bias_w: int) -> int:
+        """Set the whole-workout watt bias (clamped). Returns the applied value.
+
+        The next tick re-sends the trainer target, so a mid-step change takes
+        effect within a second.
+        """
+        bias = max(-BIAS_LIMIT_W, min(BIAS_LIMIT_W, int(bias_w)))
+        if bias != self.bias_w:
+            self.bias_w = bias
+            self.last_target_w = None
+        return self.bias_w
+
+    def biased_watts(self, step, t_in_step_s: float) -> int:
+        """Step target at t with the ride-wide bias applied (ERG steps only)."""
+        return max(BIAS_MIN_TARGET_W, step.watts_at(t_in_step_s) + self.bias_w)
 
     def start(self) -> None:
         self.state = State.RUNNING
@@ -117,7 +138,7 @@ class WorkoutRunner:
 
         target: int | None = None
         if step.is_erg():
-            target = step.watts_at(self.step_elapsed_s)
+            target = self.biased_watts(step, self.step_elapsed_s)
             if target != self.last_target_w:
                 try:
                     asyncio.ensure_future(self._set_target_safe(int(target)))

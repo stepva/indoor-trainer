@@ -1,5 +1,5 @@
 {
-  "name": "SST 4x10",
+  "name": "SST 4x15",
   "ftp_w": 246,
   "steps": [
     {
@@ -12,8 +12,8 @@
     },
     {
       "kind": "steady",
-      "duration_s": 600,
-      "target_w": 215,
+      "duration_s": 900,
+      "target_w": 220,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": ""
@@ -28,8 +28,8 @@
     },
     {
       "kind": "steady",
-      "duration_s": 600,
-      "target_w": 215,
+      "duration_s": 900,
+      "target_w": 220,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": ""
@@ -44,8 +44,8 @@
     },
     {
       "kind": "steady",
-      "duration_s": 600,
-      "target_w": 215,
+      "duration_s": 900,
+      "target_w": 220,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": ""
@@ -60,8 +60,8 @@
     },
     {
       "kind": "steady",
-      "duration_s": 600,
-      "target_w": 215,
+      "duration_s": 900,
+      "target_w": 220,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": ""

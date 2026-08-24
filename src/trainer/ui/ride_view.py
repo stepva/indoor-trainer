@@ -21,6 +21,7 @@ from typing import Callable
 
 from bleak.backends.device import BLEDevice
 from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -39,9 +40,9 @@ from ..ble.hrm import HrmClient
 from ..recording.fit_writer import write_fit
 from ..recording.recorder import Recorder
 from ..workout.model import Workout
-from ..workout.runner import State, WorkoutRunner
+from ..workout.runner import BIAS_LIMIT_W, State, WorkoutRunner
 from . import theme
-from .widgets import MetricTile, WorkoutBar, play_system_sound
+from .widgets import MetricTile, StepperTile, WorkoutBar, play_system_sound
 
 log = logging.getLogger(__name__)
 
@@ -184,7 +185,9 @@ class RideView(QWidget):
         tiles_row = QHBoxLayout(tiles_page)
         tiles_row.setContentsMargins(0, 0, 0, 0)
         tiles_row.setSpacing(12)
-        self.t_power = MetricTile("Power", "watts", theme.ACCENT_POWER)
+        self.t_power = StepperTile("Power", "watts", theme.ACCENT_POWER)
+        self.t_power.plus_clicked.connect(lambda: self._adjust_bias(+5))
+        self.t_power.minus_clicked.connect(lambda: self._adjust_bias(-5))
         self.t_hr = MetricTile("Heart rate", "bpm", theme.ACCENT_HR)
         self.t_cadence = MetricTile("Cadence", "rpm", theme.ACCENT_CADENCE)
         self.t_block = MetricTile("Block left", "m:ss", theme.ACCENT_TARGET, max_chars=5)
@@ -249,6 +252,24 @@ class RideView(QWidget):
             ctrl.addWidget(b)
         root.addLayout(ctrl)
 
+        # Keyboard: arrow up/down nudges the ride-wide ERG bias.
+        QShortcut(QKeySequence(Qt.Key_Up), self, activated=lambda: self._adjust_bias(+5))
+        QShortcut(QKeySequence(Qt.Key_Down), self, activated=lambda: self._adjust_bias(-5))
+
+    # ---- ERG bias --------------------------------------------------------
+
+    def _adjust_bias(self, delta_w: int) -> None:
+        if not self.runner:
+            return
+        bias = self.runner.set_bias(self.runner.bias_w + delta_w)
+        self.t_power.set_unit("watts" if bias == 0 else f"watts · bias {bias:+d} W")
+        if bias == 0:
+            self.status.setText("Bias cleared · targets back to plan.")
+        else:
+            limit = " (limit)" if abs(bias) >= BIAS_LIMIT_W else ""
+            self.status.setText(f"Bias {bias:+d} W on every target{limit}.")
+        self._update_step_caption()
+
     # ---- workout lifecycle ---------------------------------------------
 
     def load_workout(self, w: Workout) -> None:
@@ -257,6 +278,7 @@ class RideView(QWidget):
         self.title.setText(w.name)
         self.subtitle.setText(f"{mins} min · {len(w.steps)} steps")
         self.runner = WorkoutRunner(w, self._set_target_async)
+        self.t_power.set_unit("watts")  # fresh runner → bias back to 0
         self.workout_bar.set_workout(w, ftp=w.ftp_w)
         self._screenshot_at_s = None
         self._screenshot_path = None
@@ -589,7 +611,9 @@ class RideView(QWidget):
             return
         n = len(self.workout.steps)
         if step.is_erg():
-            target_txt = f"target {step.watts_at(self.runner.step_elapsed_s)} W"
+            target_txt = f"target {self.runner.biased_watts(step, self.runner.step_elapsed_s)} W"
+            if self.runner.bias_w:
+                target_txt += f" ({self.runner.bias_w:+d})"
         else:
             target_txt = "free ride"
         self.step_caption.setText(

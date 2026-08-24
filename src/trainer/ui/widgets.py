@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -14,8 +14,9 @@ from PySide6.QtGui import (
     QPainterPath,
     QPaintEvent,
     QPen,
+    QResizeEvent,
 )
-from PySide6.QtWidgets import QSizePolicy, QWidget
+from PySide6.QtWidgets import QPushButton, QSizePolicy, QWidget
 
 from . import theme
 
@@ -153,6 +154,67 @@ class MetricTile(QWidget):
         p.setFont(font)
         p.setPen(QColor(theme.TEXT))
         p.drawText(rect, Qt.AlignCenter, text)
+
+
+# ---------------------------------------------------------------------------
+# Stepper tile — a MetricTile with small +/− buttons overlaid on the right
+# edge (top = +, bottom = −). Used for the ride-wide ERG bias control.
+# ---------------------------------------------------------------------------
+
+
+class StepperTile(MetricTile):
+    plus_clicked = Signal()
+    minus_clicked = Signal()
+
+    _BTN_SIZE = 32
+    _BTN_MARGIN = 12
+
+    def __init__(
+        self,
+        label: str,
+        unit: str,
+        accent: str,
+        *,
+        max_chars: int = 4,
+    ) -> None:
+        super().__init__(label, unit, accent, max_chars=max_chars)
+        self._plus_btn = self._make_btn("+")
+        self._minus_btn = self._make_btn("−")
+        self._plus_btn.clicked.connect(self.plus_clicked.emit)
+        self._minus_btn.clicked.connect(self.minus_clicked.emit)
+
+    def _make_btn(self, txt: str) -> QPushButton:
+        b = QPushButton(txt, self)
+        b.setFixedSize(self._BTN_SIZE, self._BTN_SIZE)
+        b.setCursor(Qt.PointingHandCursor)
+        b.setFocusPolicy(Qt.NoFocus)
+        b.setStyleSheet(
+            f"""
+            QPushButton {{
+                background-color: rgba(255, 255, 255, 0.05);
+                border: 1px solid {theme.BORDER};
+                border-radius: {self._BTN_SIZE // 2}px;
+                padding: 0;
+                color: {theme.TEXT_DIM};
+                font-size: 17px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                border-color: {theme.PRIMARY};
+                color: {theme.TEXT};
+            }}
+            QPushButton:pressed {{
+                background-color: rgba(255, 255, 255, 0.12);
+            }}
+            """
+        )
+        return b
+
+    def resizeEvent(self, ev: QResizeEvent) -> None:  # noqa: N802
+        x = self.width() - self._BTN_SIZE - self._BTN_MARGIN
+        self._plus_btn.move(x, self._BTN_MARGIN)
+        self._minus_btn.move(x, self.height() - self._BTN_SIZE - self._BTN_MARGIN)
+        super().resizeEvent(ev)
 
 
 # ---------------------------------------------------------------------------
