@@ -46,6 +46,7 @@ class RideResult:
     avg_hr_bpm: int | None
     best_1min_w: int | None
     ftp_estimate_w: int | None  # FTP/ramp tests only: 0.75 x best 1 min
+    fit_file: str | None = None  # basename of the FIT in the rides dir
 
 
 def summarize(workout_name: str, started_at_unix: float, records: list[Record]) -> RideResult:
@@ -90,8 +91,70 @@ class ResultsLog:
     def append(self, result: RideResult) -> None:
         results = self.load()
         results.append(result)
+        results.sort(key=lambda r: r.started_at_unix)
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.write_text(json.dumps([asdict(r) for r in results], indent=2))
         except Exception:  # noqa: BLE001
             log.exception("Failed to write results log")
+
+
+# ---------------------------------------------------------------------------
+# Backfill: import FIT files recorded before the results log existed
+# ---------------------------------------------------------------------------
+
+
+def _records_from_fit(path: Path) -> tuple[list[Record], float]:
+    """Reconstruct 1 Hz records (power/HR/distance) from one of our FIT files."""
+    from fit_tool.fit_file import FitFile
+    from fit_tool.profile.messages.record_message import RecordMessage
+
+    fit = FitFile.from_file(str(path))
+    records: list[Record] = []
+    start_ms: float | None = None
+    for frame in fit.records:
+        msg = frame.message
+        if not isinstance(msg, RecordMessage) or msg.timestamp is None:
+            continue
+        if start_ms is None:
+            start_ms = float(msg.timestamp)
+        records.append(
+            Record(
+                t_s=(float(msg.timestamp) - start_ms) / 1000.0,
+                power_w=int(msg.power) if msg.power is not None else None,
+                cadence_rpm=int(msg.cadence) if msg.cadence is not None else None,
+                speed_kph=float(msg.speed) * 3.6 if msg.speed is not None else None,
+                hr_bpm=int(msg.heart_rate) if msg.heart_rate is not None else None,
+                distance_m=float(msg.distance or 0.0),
+                target_w=None,
+                step_idx=0,
+            )
+        )
+    if start_ms is None:
+        raise ValueError(f"no record messages in {path.name}")
+    return records, start_ms / 1000.0
+
+
+def _name_from_fit_filename(filename: str) -> str:
+    """'20260517-162843__sst-4x15.fit' -> 'sst-4x15' (slug; original name is gone)."""
+    stem = Path(filename).stem
+    return stem.split("__", 1)[1] if "__" in stem else stem
+
+
+def backfill_from_fit_dir(results_log: ResultsLog, rides_dir: Path) -> int:
+    """Add any FIT file in `rides_dir` that the log doesn't know yet. Returns count."""
+    known = {r.fit_file for r in results_log.load() if r.fit_file}
+    imported = 0
+    for p in sorted(rides_dir.glob("*.fit")):
+        if p.name in known:
+            continue
+        try:
+            records, start_unix = _records_from_fit(p)
+        except Exception:  # noqa: BLE001
+            log.warning("Could not import %s into the results log", p.name)
+            continue
+        result = summarize(_name_from_fit_filename(p.name), start_unix, records)
+        result.fit_file = p.name
+        results_log.append(result)
+        imported += 1
+    return imported

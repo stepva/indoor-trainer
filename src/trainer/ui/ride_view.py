@@ -497,7 +497,6 @@ class RideView(QWidget):
             self._last_result = summarize(
                 self.workout.name, self.recorder.started_at_unix, self.recorder.records
             )
-            self.results_log.append(self._last_result)
             ts = time.strftime("%Y%m%d-%H%M%S", time.localtime(self.recorder.started_at_unix))
             out = self.rides_dir / f"{ts}__{_slug(self.workout.name)}.fit"
             try:
@@ -511,6 +510,8 @@ class RideView(QWidget):
                 log.exception("FIT write failed")
                 QMessageBox.warning(self, "FIT export failed", str(exc))
                 out = None
+            self._last_result.fit_file = out.name if out is not None else None
+            self.results_log.append(self._last_result)
         asyncio.ensure_future(self._teardown_ble())
         play_system_sound("Hero")
         self._refresh_buttons()
