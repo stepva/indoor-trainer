@@ -270,9 +270,19 @@ class RideView(QWidget):
             ctrl.addWidget(b)
         root.addLayout(ctrl)
 
-        # Keyboard: arrow up/down nudges the ride-wide ERG bias.
+        # Keyboard must never "click" a focused button by accident (spacebar
+        # activating Back once navigated a rider out of a live workout).
+        for b in (
+            back, self.connect_trainer_btn, self.connect_hr_btn,
+            self.start_btn, self.pause_btn, self.lap_btn,
+            self.cooldown_btn, self.finish_btn,
+        ):
+            b.setFocusPolicy(Qt.NoFocus)
+
+        # Keyboard: arrow up/down nudges the ride-wide ERG bias; space pauses.
         QShortcut(QKeySequence(Qt.Key_Up), self, activated=lambda: self._adjust_bias(+5))
         QShortcut(QKeySequence(Qt.Key_Down), self, activated=lambda: self._adjust_bias(-5))
+        QShortcut(QKeySequence(Qt.Key_Space), self, activated=self._pause_resume)
 
     # ---- ERG bias --------------------------------------------------------
 
