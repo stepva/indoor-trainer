@@ -115,6 +115,20 @@ class WorkoutRunner:
         self.finish()
         return False
 
+    def skip_to_last_step(self) -> bool:
+        """Jump straight to the final step (the cooldown on most workouts).
+
+        Lets the rider bail out of an FTP ramp (or any workout) without
+        clicking through every remaining step. Returns True if it jumped.
+        """
+        last = len(self.workout.steps) - 1
+        if last < 0 or self.step_idx >= last:
+            return False
+        self.step_idx = last
+        self.step_elapsed_s = 0
+        self.last_target_w = None
+        return True
+
     def tick(self) -> TickResult:
         """Advance one second. Returns target, whether the step changed, and finish flag."""
         if self.state != State.RUNNING:

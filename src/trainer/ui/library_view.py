@@ -1,6 +1,7 @@
 """Library view: list workouts with a preview thumbnail and a Start button."""
 from __future__ import annotations
 
+import time
 from typing import Callable
 
 from PySide6.QtCore import Qt, QSize
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..recording.results import ResultsLog, RideResult
 from ..workout.library import WorkoutLibrary
 from ..workout.model import Workout
 from . import theme
@@ -91,11 +93,13 @@ class LibraryView(QWidget):
         library: WorkoutLibrary,
         on_start: Callable[[Workout], None],
         on_edit: Callable[[Workout | None], None],
+        results_log: ResultsLog | None = None,
     ) -> None:
         super().__init__()
         self._lib = library
         self._on_start = on_start
         self._on_edit = on_edit
+        self._results_log = results_log
 
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 18, 20, 18)
@@ -136,6 +140,19 @@ class LibraryView(QWidget):
         actions.addWidget(del_btn)
         root.addLayout(actions)
 
+        # Recent results (only shown once there is at least one finished ride)
+        self.results_title = QLabel("Recent results")
+        self.results_title.setStyleSheet(
+            f"color: {theme.TEXT}; font-size: 16px; font-weight: 600; background: transparent;"
+        )
+        root.addWidget(self.results_title)
+        self.results_list = QListWidget()
+        self.results_list.setSpacing(2)
+        self.results_list.setFixedHeight(170)
+        self.results_list.setSelectionMode(QListWidget.NoSelection)
+        self.results_list.setFocusPolicy(Qt.NoFocus)
+        root.addWidget(self.results_list)
+
         self.refresh()
 
     def refresh(self) -> None:
@@ -147,6 +164,30 @@ class LibraryView(QWidget):
             it.setSizeHint(QSize(0, 110))
             self.list.addItem(it)
             self.list.setItemWidget(it, row)
+        self._refresh_results()
+
+    def _refresh_results(self) -> None:
+        self.results_list.clear()
+        results = self._results_log.load() if self._results_log else []
+        self.results_title.setVisible(bool(results))
+        self.results_list.setVisible(bool(results))
+        for r in reversed(results[-20:]):  # newest first
+            it = QListWidgetItem(self._format_result(r))
+            if r.ftp_estimate_w is not None:
+                it.setForeground(Qt.white)
+            self.results_list.addItem(it)
+
+    @staticmethod
+    def _format_result(r: RideResult) -> str:
+        when = time.strftime("%d %b %Y %H:%M", time.localtime(r.started_at_unix))
+        bits = [when, r.workout_name, f"{r.duration_s // 60} min"]
+        if r.avg_power_w is not None:
+            bits.append(f"avg {r.avg_power_w} W")
+        if r.best_1min_w is not None:
+            bits.append(f"best 1' {r.best_1min_w} W")
+        if r.ftp_estimate_w is not None:
+            bits.append(f"★ FTP ≈ {r.ftp_estimate_w} W")
+        return "   ·   ".join(bits)
 
     def _selected(self) -> Workout | None:
         it = self.list.currentItem()

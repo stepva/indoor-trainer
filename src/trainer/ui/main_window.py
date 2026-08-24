@@ -5,6 +5,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QMainWindow, QStackedWidget
 
+from ..recording.results import ResultsLog
 from ..workout.library import WorkoutLibrary
 from ..workout.model import Workout
 from .builder_view import WorkoutBuilderView
@@ -21,6 +22,7 @@ class MainWindow(QMainWindow):
 
         self.library = WorkoutLibrary(workouts_dir)
         self.library.seed_if_empty()
+        self.results_log = ResultsLog(rides_dir / "results.json")
 
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
@@ -29,10 +31,11 @@ class MainWindow(QMainWindow):
             self.library,
             on_start=self._open_ride,
             on_edit=self._open_builder,
+            results_log=self.results_log,
         )
         self.stack.addWidget(self.library_view)
 
-        self.ride_view = RideView(rides_dir, on_back=self._show_library)
+        self.ride_view = RideView(rides_dir, on_back=self._show_library, results_log=self.results_log)
         self.stack.addWidget(self.ride_view)
 
         self._builder_view: WorkoutBuilderView | None = None

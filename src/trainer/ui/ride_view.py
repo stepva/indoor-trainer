@@ -39,6 +39,7 @@ from ..ble.ftms import BikeSample, FtmsClient
 from ..ble.hrm import HrmClient
 from ..recording.fit_writer import write_fit
 from ..recording.recorder import Recorder
+from ..recording.results import ResultsLog, RideResult, summarize
 from ..workout.model import Workout
 from ..workout.runner import BIAS_LIMIT_W, State, WorkoutRunner
 from . import theme
@@ -105,11 +106,14 @@ class RideView(QWidget):
         self,
         rides_dir: Path,
         on_back: Callable[[], None],
+        results_log: ResultsLog | None = None,
     ) -> None:
         super().__init__()
         self.rides_dir = rides_dir
         self.rides_dir.mkdir(parents=True, exist_ok=True)
         self._on_back = on_back
+        self.results_log = results_log or ResultsLog(rides_dir / "results.json")
+        self._last_result: RideResult | None = None
 
         self.workout: Workout | None = None
         self.ftms = FtmsClient()
@@ -242,13 +246,19 @@ class RideView(QWidget):
         self.lap_btn.setMinimumWidth(110)
         self.lap_btn.clicked.connect(self._skip_step)
         self.lap_btn.setEnabled(False)
+        self.cooldown_btn = QPushButton("→ Cooldown")
+        self.cooldown_btn.setFixedHeight(44)
+        self.cooldown_btn.setMinimumWidth(120)
+        self.cooldown_btn.setToolTip("Jump straight to the last step (e.g. when you blow up in a ramp test)")
+        self.cooldown_btn.clicked.connect(self._skip_to_cooldown)
+        self.cooldown_btn.setEnabled(False)
         self.finish_btn = QPushButton("Finish  ⏹")
         self.finish_btn.setProperty("danger", True)
         self.finish_btn.setFixedHeight(44)
         self.finish_btn.setMinimumWidth(120)
         self.finish_btn.clicked.connect(self._finish)
         self.finish_btn.setEnabled(False)
-        for b in (self.start_btn, self.pause_btn, self.lap_btn, self.finish_btn):
+        for b in (self.start_btn, self.pause_btn, self.lap_btn, self.cooldown_btn, self.finish_btn):
             ctrl.addWidget(b)
         root.addLayout(ctrl)
 
@@ -306,6 +316,7 @@ class RideView(QWidget):
             self.pause_btn.setEnabled(running or paused)
             self.pause_btn.setText("Resume" if paused else "Pause")
         self.lap_btn.setEnabled(running or paused)
+        self.cooldown_btn.setEnabled(running or paused)
         self.finish_btn.setEnabled(running or paused or counting)
 
     # ---- BLE: trainer ---------------------------------------------------
@@ -465,6 +476,13 @@ class RideView(QWidget):
             if crossed:
                 play_system_sound("Tink")
 
+    def _skip_to_cooldown(self) -> None:
+        if self.runner and self.runner.skip_to_last_step():
+            self.recorder.current_step_idx = self.runner.step_idx
+            self._update_step_caption()
+            self.status.setText("Jumped to the final step · spin it out.")
+            play_system_sound("Tink")
+
     def _finish(self) -> None:
         if not self.runner:
             return
@@ -474,7 +492,12 @@ class RideView(QWidget):
         self._timer.stop()
         self.runner.finish()
         out: Path | None = None
+        self._last_result = None
         if self.recorder.records and self.workout:
+            self._last_result = summarize(
+                self.workout.name, self.recorder.started_at_unix, self.recorder.records
+            )
+            self.results_log.append(self._last_result)
             ts = time.strftime("%Y%m%d-%H%M%S", time.localtime(self.recorder.started_at_unix))
             out = self.rides_dir / f"{ts}__{_slug(self.workout.name)}.fit"
             try:
@@ -514,9 +537,17 @@ class RideView(QWidget):
         text = (
             f"Workout saved.\n\n"
             f"Duration: {secs // 60} min {secs % 60:02d} s\n"
-            f"Distance: {km:.2f} km\n"
-            f"FIT: {out_path}"
+            f"Distance: {km:.2f} km"
         )
+        r = self._last_result
+        if r is not None:
+            if r.avg_power_w is not None:
+                text += f"\nAvg power: {r.avg_power_w} W"
+            if r.best_1min_w is not None:
+                text += f"\nBest 1 min: {r.best_1min_w} W"
+            if r.ftp_estimate_w is not None:
+                text += f"\n\n★ Estimated FTP: {r.ftp_estimate_w} W (0.75 × best 1 min)"
+        text += f"\nFIT: {out_path}"
         if self._screenshot_path is not None:
             text += f"\nShare image: {self._screenshot_path}"
         msg.setText(text)
