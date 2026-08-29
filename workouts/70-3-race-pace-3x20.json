@@ -1,19 +1,19 @@
 {
   "name": "70.3 Race Pace 3x20",
-  "ftp_w": 246,
+  "ftp_w": 274,
   "steps": [
     {
       "kind": "ramp",
       "duration_s": 600,
       "target_w": null,
-      "ramp_from_w": 125,
-      "ramp_to_w": 185,
+      "ramp_from_w": 140,
+      "ramp_to_w": 205,
       "label": "Warmup"
     },
     {
       "kind": "steady",
       "duration_s": 60,
-      "target_w": 250,
+      "target_w": 280,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Primer 1"
@@ -21,7 +21,7 @@
     {
       "kind": "steady",
       "duration_s": 60,
-      "target_w": 140,
+      "target_w": 150,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Easy"
@@ -29,7 +29,7 @@
     {
       "kind": "steady",
       "duration_s": 60,
-      "target_w": 250,
+      "target_w": 280,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Primer 2"
@@ -37,7 +37,7 @@
     {
       "kind": "steady",
       "duration_s": 60,
-      "target_w": 140,
+      "target_w": 150,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Easy"
@@ -45,7 +45,7 @@
     {
       "kind": "steady",
       "duration_s": 60,
-      "target_w": 250,
+      "target_w": 280,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Primer 3"
@@ -53,7 +53,7 @@
     {
       "kind": "steady",
       "duration_s": 60,
-      "target_w": 140,
+      "target_w": 150,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Easy"
@@ -61,15 +61,15 @@
     {
       "kind": "steady",
       "duration_s": 1200,
-      "target_w": 205,
+      "target_w": 220,
       "ramp_from_w": null,
       "ramp_to_w": null,
-      "label": "Race pace 1 (83%)"
+      "label": "Race pace 1 (80%)"
     },
     {
       "kind": "steady",
       "duration_s": 240,
-      "target_w": 140,
+      "target_w": 150,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Recovery"
@@ -77,15 +77,15 @@
     {
       "kind": "steady",
       "duration_s": 1200,
-      "target_w": 212,
+      "target_w": 226,
       "ramp_from_w": null,
       "ramp_to_w": null,
-      "label": "Race pace 2 (86%)"
+      "label": "Race pace 2 (82%)"
     },
     {
       "kind": "steady",
       "duration_s": 240,
-      "target_w": 140,
+      "target_w": 150,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Recovery"
@@ -93,17 +93,17 @@
     {
       "kind": "steady",
       "duration_s": 1200,
-      "target_w": 218,
+      "target_w": 233,
       "ramp_from_w": null,
       "ramp_to_w": null,
-      "label": "Race pace 3 (89%)"
+      "label": "Race pace 3 (85%)"
     },
     {
       "kind": "ramp",
       "duration_s": 360,
       "target_w": null,
-      "ramp_from_w": 150,
-      "ramp_to_w": 105,
+      "ramp_from_w": 165,
+      "ramp_to_w": 115,
       "label": "Cooldown"
     }
   ]

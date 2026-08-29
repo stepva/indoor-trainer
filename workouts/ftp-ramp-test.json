@@ -1,6 +1,6 @@
 {
   "name": "FTP Ramp Test",
-  "ftp_w": 246,
+  "ftp_w": 274,
   "steps": [
     {
       "kind": "ramp",

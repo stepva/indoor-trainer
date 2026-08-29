@@ -1,11 +1,11 @@
 {
   "name": "4x4 VO2",
-  "ftp_w": 200,
+  "ftp_w": 274,
   "steps": [
     {
       "kind": "steady",
       "duration_s": 600,
-      "target_w": 110,
+      "target_w": 140,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Warmup"
@@ -13,7 +13,7 @@
     {
       "kind": "steady",
       "duration_s": 240,
-      "target_w": 240,
+      "target_w": 300,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "VO2"
@@ -21,7 +21,7 @@
     {
       "kind": "steady",
       "duration_s": 180,
-      "target_w": 110,
+      "target_w": 140,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Recovery"
@@ -29,7 +29,7 @@
     {
       "kind": "steady",
       "duration_s": 240,
-      "target_w": 240,
+      "target_w": 300,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "VO2"
@@ -37,7 +37,7 @@
     {
       "kind": "steady",
       "duration_s": 180,
-      "target_w": 110,
+      "target_w": 140,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Recovery"
@@ -45,7 +45,7 @@
     {
       "kind": "steady",
       "duration_s": 240,
-      "target_w": 240,
+      "target_w": 300,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "VO2"
@@ -53,7 +53,7 @@
     {
       "kind": "steady",
       "duration_s": 180,
-      "target_w": 110,
+      "target_w": 140,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Recovery"
@@ -61,7 +61,7 @@
     {
       "kind": "steady",
       "duration_s": 240,
-      "target_w": 240,
+      "target_w": 300,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "VO2"
@@ -69,7 +69,7 @@
     {
       "kind": "steady",
       "duration_s": 180,
-      "target_w": 110,
+      "target_w": 140,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Recovery"
@@ -77,7 +77,7 @@
     {
       "kind": "steady",
       "duration_s": 300,
-      "target_w": 100,
+      "target_w": 120,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Cooldown"

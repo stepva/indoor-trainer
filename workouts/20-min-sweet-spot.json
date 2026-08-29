@@ -1,11 +1,11 @@
 {
   "name": "20 min Sweet Spot",
-  "ftp_w": 246,
+  "ftp_w": 274,
   "steps": [
     {
       "kind": "steady",
       "duration_s": 300,
-      "target_w": 110,
+      "target_w": 150,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Warmup"
@@ -13,7 +13,7 @@
     {
       "kind": "steady",
       "duration_s": 1200,
-      "target_w": 180,
+      "target_w": 240,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Sweet Spot"
@@ -21,7 +21,7 @@
     {
       "kind": "steady",
       "duration_s": 300,
-      "target_w": 100,
+      "target_w": 115,
       "ramp_from_w": null,
       "ramp_to_w": null,
       "label": "Cooldown"
