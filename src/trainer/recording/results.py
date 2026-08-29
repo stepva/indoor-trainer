@@ -105,19 +105,32 @@ class ResultsLog:
 
 
 def _records_from_fit(path: Path) -> tuple[list[Record], float]:
-    """Reconstruct 1 Hz records (power/HR/distance) from one of our FIT files."""
+    """Reconstruct 1 Hz records (power/HR/distance) from one of our FIT files.
+
+    We write one lap per workout step, so step_idx is set to the lap ORDINAL
+    (0, 1, 2, … in ride order — not the plan index, since skips jump around);
+    records outside any lap get step_idx = -1.
+    """
     from fit_tool.fit_file import FitFile
+    from fit_tool.profile.messages.lap_message import LapMessage
     from fit_tool.profile.messages.record_message import RecordMessage
 
     fit = FitFile.from_file(str(path))
     records: list[Record] = []
+    ts_ms: list[float] = []
+    laps: list[tuple[float, float]] = []  # (start_ms, end_ms) in ride order
     start_ms: float | None = None
     for frame in fit.records:
         msg = frame.message
+        if isinstance(msg, LapMessage):
+            if msg.start_time is not None and msg.timestamp is not None:
+                laps.append((float(msg.start_time), float(msg.timestamp)))
+            continue
         if not isinstance(msg, RecordMessage) or msg.timestamp is None:
             continue
         if start_ms is None:
             start_ms = float(msg.timestamp)
+        ts_ms.append(float(msg.timestamp))
         records.append(
             Record(
                 t_s=(float(msg.timestamp) - start_ms) / 1000.0,
@@ -127,11 +140,16 @@ def _records_from_fit(path: Path) -> tuple[list[Record], float]:
                 hr_bpm=int(msg.heart_rate) if msg.heart_rate is not None else None,
                 distance_m=float(msg.distance or 0.0),
                 target_w=None,
-                step_idx=0,
+                step_idx=-1,
             )
         )
     if start_ms is None:
         raise ValueError(f"no record messages in {path.name}")
+    for rec, t in zip(records, ts_ms):
+        for ordinal, (lap_start, lap_end) in enumerate(laps):
+            if lap_start <= t <= lap_end:
+                rec.step_idx = ordinal
+                break
     return records, start_ms / 1000.0
 
 

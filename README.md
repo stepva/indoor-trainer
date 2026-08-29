@@ -26,7 +26,11 @@ process — allow it (System Settings → Privacy & Security → Bluetooth).
 4. Click **Connect HR…** and pick your Garmin. On the watch:
    *Settings → Sensors & Accessories → Wrist Heart Rate → Broadcast Heart Rate → Broadcast Now*. A chest strap also works.
 5. Click **Start ▶** in the ride view. The trainer will follow each step's target wattage.
-6. **Pause / Skip step / Finish** as needed. **Finish** writes a FIT file to `rides/`.
+6. **Pause / Skip step / Finish** as needed. **Finish** writes a FIT file to `rides/`
+   and opens a **summary page** with your stats and the workout profile. A matching
+   share image (`rides/<ride>.png`, 1600x1000) is saved automatically — add it as the
+   photo when you upload the ride to Strava. You can reopen (and regenerate) the
+   summary for any past ride from **Past rides → Summary**.
 7. Drag the `.fit` into Garmin Connect (Activities → Upload) or Strava (Upload → File).
 
 ## Workout format
@@ -43,6 +47,7 @@ You can edit the JSON files directly or use the in-app builder.
 
 - `workouts/*.json` — your workout library
 - `rides/*.fit`     — exported activities (upload these)
+- `rides/*.png`     — share images for Strava (one per ride)
 
 ## Notes
 

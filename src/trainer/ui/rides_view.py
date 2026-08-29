@@ -24,7 +24,12 @@ from . import theme
 
 
 class _RideRow(QFrame):
-    def __init__(self, result: RideResult, fit_path: Path | None) -> None:
+    def __init__(
+        self,
+        result: RideResult,
+        fit_path: Path | None,
+        on_summary: Callable[[RideResult], None] | None = None,
+    ) -> None:
         super().__init__()
         self.setFrameShape(QFrame.NoFrame)
         self.setStyleSheet("background: transparent;")
@@ -71,6 +76,10 @@ class _RideRow(QFrame):
             h.addWidget(badge)
 
         if fit_path is not None and fit_path.exists():
+            if on_summary is not None:
+                summary = QPushButton("Summary")
+                summary.clicked.connect(lambda *_: on_summary(result))
+                h.addWidget(summary)
             reveal = QPushButton("Reveal FIT")
             reveal.clicked.connect(lambda *_: self._reveal(fit_path))
             h.addWidget(reveal)
@@ -89,10 +98,12 @@ class RidesView(QWidget):
         results_log: ResultsLog,
         rides_dir: Path,
         on_back: Callable[[], None],
+        on_summary: Callable[[RideResult], None] | None = None,
     ) -> None:
         super().__init__()
         self._log = results_log
         self._rides_dir = rides_dir
+        self._on_summary = on_summary
 
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 18, 20, 18)
@@ -141,7 +152,7 @@ class RidesView(QWidget):
         for r in reversed(results):  # newest first
             it = QListWidgetItem(self.list)
             fit_path = self._rides_dir / r.fit_file if r.fit_file else None
-            row = _RideRow(r, fit_path)
+            row = _RideRow(r, fit_path, on_summary=self._on_summary)
             it.setSizeHint(QSize(0, 72))
             self.list.addItem(it)
             self.list.setItemWidget(it, row)

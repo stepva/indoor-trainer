@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import random
 import re
 import subprocess
 import time
@@ -49,6 +48,7 @@ from ..recording.results import ResultsLog, RideResult, summarize
 from ..workout.model import Workout
 from ..workout.runner import BIAS_LIMIT_W, State, WorkoutRunner
 from . import theme
+from .summary_view import FinishedRide, compute_stats
 from .widgets import MetricTile, StepperTile, WorkoutBar, play_system_sound
 
 log = logging.getLogger(__name__)
@@ -113,11 +113,13 @@ class RideView(QWidget):
         rides_dir: Path,
         on_back: Callable[[], None],
         results_log: ResultsLog | None = None,
+        on_finished: Callable[[FinishedRide], None] | None = None,
     ) -> None:
         super().__init__()
         self.rides_dir = rides_dir
         self.rides_dir.mkdir(parents=True, exist_ok=True)
         self._on_back = on_back
+        self._on_finished = on_finished
         self.results_log = results_log or ResultsLog(rides_dir / "results.json")
         self._last_result: RideResult | None = None
         self._autosave_path: Path | None = None
@@ -138,10 +140,6 @@ class RideView(QWidget):
         self._countdown_timer = QTimer(self)
         self._countdown_timer.setInterval(1000)
         self._countdown_timer.timeout.connect(self._countdown_tick)
-
-        # Mid-workout share-screenshot
-        self._screenshot_at_s: int | None = None
-        self._screenshot_path: Path | None = None
 
         self._build_ui()
 
@@ -308,8 +306,6 @@ class RideView(QWidget):
         self.runner = WorkoutRunner(w, self._set_target_async)
         self.t_power.set_unit("watts")  # fresh runner → bias back to 0
         self.workout_bar.set_workout(w, ftp=w.ftp_w)
-        self._screenshot_at_s = None
-        self._screenshot_path = None
         self._autosave_path = None
         self._finish_done = False
         self._refresh_buttons()
@@ -451,17 +447,6 @@ class RideView(QWidget):
             self._autosave_path = autosave_path(
                 self.rides_dir, self.workout.name, self.recorder.started_at_unix
             )
-        # Pick a random "middle of the workout" moment to grab a shareable
-        # screenshot (between 30% and 70% of total duration).
-        if self.workout and self.workout.total_duration_s >= 20:
-            total = self.workout.total_duration_s
-            lo = max(5, int(total * 0.30))
-            hi = max(lo + 1, int(total * 0.70))
-            self._screenshot_at_s = random.randint(lo, hi)
-            log.info("Will capture share screenshot at t=%ss", self._screenshot_at_s)
-        else:
-            self._screenshot_at_s = None
-        self._screenshot_path = None
         self._timer.start()
         self._refresh_buttons()
         self.status.setText("Workout started · pedal!")
@@ -539,13 +524,15 @@ class RideView(QWidget):
         self._timer.stop()
         self.runner.finish()
         out: Path | None = None
+        payload: FinishedRide | None = None
         self._last_result = None
         if self.recorder.records and self.workout:
             self._last_result = summarize(
                 self.workout.name, self.recorder.started_at_unix, self.recorder.records
             )
             ts = time.strftime("%Y%m%d-%H%M%S", time.localtime(self.recorder.started_at_unix))
-            out = self.rides_dir / f"{ts}__{_slug(self.workout.name)}.fit"
+            base = f"{ts}__{_slug(self.workout.name)}"
+            out = self.rides_dir / f"{base}.fit"
             try:
                 write_fit(
                     out_path=out,
@@ -561,10 +548,23 @@ class RideView(QWidget):
             self.results_log.append(self._last_result)
             if out is not None and self._autosave_path is not None:
                 clear_autosave(self._autosave_path)  # FIT is safe; drop the backup
+            stats = compute_stats(
+                self.workout.name,
+                self.recorder.started_at_unix,
+                self.recorder.records,
+                self.workout.ftp_w,
+            )
+            payload = FinishedRide(
+                workout=self.workout,
+                records=list(self.recorder.records),
+                stats=stats,
+                fit_path=out,
+                png_path=self.rides_dir / f"{base}.png",
+            )
         asyncio.ensure_future(self._teardown_ble())
         play_system_sound("Hero")
         self._refresh_buttons()
-        self._finished_with.emit(out)
+        self._finished_with.emit(payload)
 
     async def _teardown_ble(self) -> None:
         try:
@@ -576,46 +576,35 @@ class RideView(QWidget):
         except Exception:  # noqa: BLE001
             pass
 
-    def _show_finished_dialog(self, out_path: Path | None) -> None:
-        if out_path is None:
+    def _show_finished_dialog(self, payload: FinishedRide | None) -> None:
+        if payload is None:
             QMessageBox.information(self, "Finished", "Workout finished. No data was recorded.")
             return
+        if self._on_finished is not None:
+            # Hand off to the summary page (renders + saves the share image).
+            self._on_finished(payload)
+            return
+        # Fallback: plain dialog when no summary page is wired in.
         msg = QMessageBox(self)
         msg.setWindowTitle("Finished")
-        secs = int(self.recorder.elapsed_s)
-        km = self.recorder.distance_m / 1000.0
+        s = payload.stats
         text = (
             f"Workout saved.\n\n"
-            f"Duration: {secs // 60} min {secs % 60:02d} s\n"
-            f"Distance: {km:.2f} km"
+            f"Duration: {s.duration_s // 60} min {s.duration_s % 60:02d} s\n"
+            f"Distance: {s.distance_km:.2f} km"
         )
-        r = self._last_result
-        if r is not None:
-            if r.avg_power_w is not None:
-                text += f"\nAvg power: {r.avg_power_w} W"
-            if r.best_1min_w is not None:
-                text += f"\nBest 1 min: {r.best_1min_w} W"
-            if r.ftp_estimate_w is not None:
-                text += f"\n\n★ Estimated FTP: {r.ftp_estimate_w} W (0.75 × best 1 min)"
-        text += f"\nFIT: {out_path}"
-        if self._screenshot_path is not None:
-            text += f"\nShare image: {self._screenshot_path}"
+        if s.avg_power_w is not None:
+            text += f"\nAvg power: {s.avg_power_w} W"
+        if s.ftp_estimate_w is not None:
+            text += f"\n\n★ Estimated FTP: {s.ftp_estimate_w} W (0.75 × best 1 min)"
+        text += f"\nFIT: {payload.fit_path}"
         msg.setText(text)
         reveal_fit = msg.addButton("Reveal FIT", QMessageBox.ActionRole)
-        reveal_png = None
-        if self._screenshot_path is not None:
-            reveal_png = msg.addButton("Reveal share image", QMessageBox.ActionRole)
         msg.addButton(QMessageBox.Ok)
         msg.exec()
-        clicked = msg.clickedButton()
-        if clicked is reveal_fit:
+        if msg.clickedButton() is reveal_fit and payload.fit_path is not None:
             try:
-                subprocess.Popen(["open", "-R", str(out_path)])
-            except Exception:  # noqa: BLE001
-                pass
-        elif reveal_png is not None and clicked is reveal_png:
-            try:
-                subprocess.Popen(["open", "-R", str(self._screenshot_path)])
+                subprocess.Popen(["open", "-R", str(payload.fit_path)])
             except Exception:  # noqa: BLE001
                 pass
 
@@ -640,36 +629,9 @@ class RideView(QWidget):
                 play_system_sound("Glass")
         self._update_displays()
         self._update_step_caption()
-        # Grab the mid-workout share screenshot when the clock hits the target.
-        if (
-            self._screenshot_at_s is not None
-            and self._screenshot_path is None
-            and self.runner.state == State.RUNNING
-            and self.runner.elapsed_s >= self._screenshot_at_s
-        ):
-            # Defer one event-loop tick so the tile values for THIS second are
-            # painted before we grab.
-            QTimer.singleShot(0, self._take_share_screenshot)
         if self.runner.state == State.FINISHED:
             self._timer.stop()
             self._finish()  # idempotent — saves the ride if nothing else has
-
-    def _take_share_screenshot(self) -> None:
-        if not self.workout or self._screenshot_path is not None:
-            return
-        try:
-            pixmap = self.grab()
-            ts = time.strftime(
-                "%Y%m%d-%H%M%S", time.localtime(self.recorder.started_at_unix)
-            )
-            out = self.rides_dir / f"{ts}__{_slug(self.workout.name)}.png"
-            if pixmap.save(str(out), "PNG"):
-                self._screenshot_path = out
-                log.info("Saved share screenshot to %s", out)
-            else:
-                log.warning("Failed to save share screenshot to %s", out)
-        except Exception:  # noqa: BLE001
-            log.exception("Share screenshot failed")
 
     def _update_displays(self) -> None:
         r = self.recorder

@@ -223,12 +223,56 @@ class StepperTile(MetricTile):
 
 
 @dataclass
-class _Seg:
+class ProfileSeg:
     start: float
     end: float
     color: QColor
     label: str
     avg_w: int
+
+
+def build_profile_segments(workout, ftp: int | None) -> tuple[list[ProfileSeg], int, int]:
+    """Flatten a workout into zone-colored bar segments.
+
+    Returns (segments, total_s, peak_w). Ramps are sliced into 6 sub-bars so
+    the profile shows the gradient. Shared by WorkoutBar and the ride summary.
+    """
+    segments: list[ProfileSeg] = []
+    t = 0.0
+    peak = 1
+    for step in workout.steps:
+        if step.kind == "steady":
+            w = int(step.target_w or 0)
+            color = theme.zone_color_for_watts(w, ftp)
+            segments.append(ProfileSeg(t, t + step.duration_s, color, step.label or "steady", w))
+            peak = max(peak, w)
+        elif step.kind == "ramp":
+            a = int(step.ramp_from_w or 0)
+            b = int(step.ramp_to_w or 0)
+            slices = 6
+            for i in range(slices):
+                f0 = i / slices
+                f1 = (i + 1) / slices
+                avg_w = int(round(a + (b - a) * (f0 + f1) / 2))
+                color = theme.zone_color_for_watts(avg_w, ftp)
+                segments.append(
+                    ProfileSeg(
+                        t + step.duration_s * f0,
+                        t + step.duration_s * f1,
+                        color,
+                        step.label or "ramp",
+                        avg_w,
+                    )
+                )
+                peak = max(peak, avg_w)
+        else:
+            color = QColor(theme.BORDER)
+            segments.append(ProfileSeg(t, t + step.duration_s, color, step.label or "free", 0))
+        t += step.duration_s
+    return segments, max(int(t), 1), peak
+
+
+_Seg = ProfileSeg  # back-compat alias
 
 
 class WorkoutBar(QWidget):
@@ -245,40 +289,8 @@ class WorkoutBar(QWidget):
         self._ftp: int | None = None
 
     def set_workout(self, workout, ftp: int | None = None) -> None:
-        self._segments.clear()
         self._ftp = ftp or workout.ftp_w
-        t = 0.0
-        peak = 1
-        for step in workout.steps:
-            if step.kind == "steady":
-                w = int(step.target_w or 0)
-                color = theme.zone_color_for_watts(w, self._ftp)
-                self._segments.append(_Seg(t, t + step.duration_s, color, step.label or "steady", w))
-                peak = max(peak, w)
-            elif step.kind == "ramp":
-                a = int(step.ramp_from_w or 0)
-                b = int(step.ramp_to_w or 0)
-                slices = 6
-                for i in range(slices):
-                    f0 = i / slices
-                    f1 = (i + 1) / slices
-                    avg_w = int(round(a + (b - a) * (f0 + f1) / 2))
-                    color = theme.zone_color_for_watts(avg_w, self._ftp)
-                    self._segments.append(
-                        _Seg(
-                            t + step.duration_s * f0,
-                            t + step.duration_s * f1,
-                            color,
-                            step.label or "ramp",
-                            avg_w,
-                        )
-                    )
-                    peak = max(peak, avg_w)
-            else:
-                color = QColor(theme.BORDER)
-                self._segments.append(_Seg(t, t + step.duration_s, color, step.label or "free", 0))
-            t += step.duration_s
-        self._total_s = max(int(t), 1)
+        self._segments, self._total_s, peak = build_profile_segments(workout, self._ftp)
         self._max_w = max(peak, 1)
         self._progress_s = 0.0
         self._current_step = -1
