@@ -15,6 +15,11 @@ __pycache__/
 # Recorded activity data — private to each user
 rides/
 
+# Workout library — personal, except the bundled examples below
+workouts/*.json
+!workouts/ftp-ramp-test.json
+!workouts/20-min-sweet-spot.json
+
 # Runtime logs
 trainer.log*
 
