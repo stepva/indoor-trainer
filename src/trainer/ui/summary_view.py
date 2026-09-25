@@ -6,7 +6,7 @@ exact same drawing at different scales.
 
 Layout (top -> bottom; no header — name/date live on the Strava activity):
   • Chart: planned structure in zone colors + actual power & HR traces
-  • 6 stat tiles: time · distance · avg power · max power · cadence · avg HR
+  • 5 stat tiles: time · distance · avg power · cadence · avg HR
   • Footer strip: NP · IF · TSS · work kJ · best 1' · max HR
 """
 from __future__ import annotations
@@ -77,7 +77,6 @@ class SummaryStats:
     duration_s: int
     distance_km: float
     avg_power_w: int | None
-    max_power_w: int | None
     normalized_power_w: int | None
     intensity_factor: float | None
     tss: float | None
@@ -130,7 +129,6 @@ def compute_stats(
         duration_s=duration_s,
         distance_km=(records[-1].distance_m / 1000.0) if records else 0.0,
         avg_power_w=int(round(sum(powers) / len(powers))) if powers else None,
-        max_power_w=int(max(powers)) if powers else None,
         normalized_power_w=np_w,
         intensity_factor=intensity,
         tss=tss,
@@ -496,8 +494,6 @@ class SummaryCard(QWidget):
             ("Distance", f"{s.distance_km:.1f}", "km", theme.ACCENT_DIST),
             ("Avg power", str(s.avg_power_w) if s.avg_power_w is not None else "—", "watts",
              theme.ACCENT_POWER),
-            ("Max power", str(s.max_power_w) if s.max_power_w is not None else "—", "watts",
-             theme.ACCENT_TARGET),
             ("Cadence", str(s.avg_cadence_rpm) if s.avg_cadence_rpm is not None else "—", "rpm",
              theme.ACCENT_CADENCE),
             ("Avg HR", str(s.avg_hr_bpm) if s.avg_hr_bpm is not None else "—", "bpm",
@@ -554,7 +550,9 @@ class SummaryCard(QWidget):
         value_rect = QRectF(
             inner.left(), inner.top() + 16, inner.width(), inner.height() - 32
         )
-        # Auto-fit the value.
+        # Auto-fit the value. Apply the tighter of the width/height limits each
+        # pass: metrics don't scale exactly with size, so shrinking for one limit
+        # at a time can use up the passes and never check the other.
         size = value_rect.height() * 0.9
         value_font = QFont()
         value_font.setWeight(QFont.Black)
@@ -562,12 +560,13 @@ class SummaryCard(QWidget):
         for _ in range(6):
             value_font.setPointSizeF(size)
             fm = QFontMetricsF(value_font)
-            if fm.horizontalAdvance(value) > value_rect.width() * 0.98:
-                size *= value_rect.width() * 0.98 / max(fm.horizontalAdvance(value), 1)
-            elif fm.ascent() + fm.descent() > value_rect.height():
-                size *= value_rect.height() / (fm.ascent() + fm.descent())
-            else:
+            fit = min(
+                value_rect.width() * 0.98 / max(fm.horizontalAdvance(value), 1),
+                value_rect.height() / (fm.ascent() + fm.descent()),
+            )
+            if fit >= 1.0:
                 break
+            size *= fit
         value_font.setPointSizeF(size)
         p.setFont(value_font)
         p.setPen(QColor(theme.TEXT))
